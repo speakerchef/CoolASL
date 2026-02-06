@@ -2,3 +2,4 @@
 .idea
 .DS_Store
 /models
+/data
