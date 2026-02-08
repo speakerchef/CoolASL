@@ -19,7 +19,7 @@ cfg = import_cfg()
 
 mp_modelpath = os.path.join(cfg['working_path'], 'models/hand_landmarker.task')
 
-asl_path = torch.load('../models/resnet18_asl_08_02_2026_00_22_59')
+asl_path = torch.load('../models/resnet18_asl_08_02_2026_04_26_58')
 asl_model = model
 asl_model.load_state_dict(asl_path)
 
@@ -91,10 +91,10 @@ with HandLandmarker.create_from_options(options) as landmarker:
                 get_span(hand[20].x, wrist.x, hand[20].y, span_y),
                     )
 
-                scale = math.exp(-span) # drop scale factor as span increases
+                scale =1.1* math.exp(-span) # drop scale factor as span increases
                 box_size = span * scale
 
-                x_dampener = 0.7 # narrow bbox width
+                x_dampener = 0.5 # narrow bbox width
 
                 x_top = int((cx + box_size * x_dampener) * w)
                 y_top = int((cy + box_size) * h)
@@ -111,6 +111,7 @@ with HandLandmarker.create_from_options(options) as landmarker:
                 cv2.rectangle(frame, (x_top,y_top), (x_btm, y_btm), (0,255,0), 2)
 
                 crop = frame[y_btm:y_top, x_btm:x_top]
+
                 crop_rgb = Image.fromarray(cv2.cvtColor(crop, cv2.COLOR_BGR2RGB))
                 transforms = v2.Compose([
                     v2.Resize((224,224), antialias=True),
@@ -120,16 +121,33 @@ with HandLandmarker.create_from_options(options) as landmarker:
                 ])
                 crop_rgb = transforms(crop_rgb)
 
+                display = crop_rgb.clone()
+                mean = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
+                std = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
+                display = display * std + mean
+                display = display.clamp(0, 1).permute(1, 2, 0).numpy()
+                cv2.imshow("Model Input", cv2.cvtColor(display, cv2.COLOR_RGB2BGR))
+
                 with torch.no_grad():
                     crop_rgb = crop_rgb.unsqueeze(0)
+
                     crop_rgb = crop_rgb.to(device)
+
                     outputs = asl_model(crop_rgb)
+
                     _, predicted = torch.max(outputs, 1)
+
                     class_idx = predicted.item()
                     classes = sorted(os.listdir(asl_train))  # ['0', '1', ..., '9', 'A', 'B', ..., 'Z']
                     classes = classes[1:]
+
+                    probs = torch.softmax(outputs, dim=1)
+                    confidence, predicted = torch.max(probs, 1)
+                    if confidence.item() > 0.7:
+                        label = f"{classes[class_idx]} ({confidence.item():.0%})"
+                        cv2.putText(frame, label, (x_btm, y_btm - 10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
                     label = classes[class_idx]
-                    print(label)
 
 
         cv2.imshow("Webcam", frame)

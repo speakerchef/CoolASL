@@ -66,7 +66,7 @@ for epoch in range(num_epochs):
 
     # Validation loop
     with torch.no_grad():
-        for j, vdata in enumerate(test_clean_loader):
+        for j, vdata in enumerate(test_messy_loader):
             vinputs, vlabels = vdata
             vinputs, vlabels = vinputs.to(device), vlabels.to(device)
 

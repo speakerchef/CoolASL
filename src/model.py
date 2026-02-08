@@ -11,6 +11,22 @@ for name, param in model.named_parameters():
     if name.startswith(('layer1', 'layer2', 'layer3')):
         param.requires_grad = False
 
+class LandmarkClassifier(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.network = nn.Sequential(
+            nn.Linear(63, 256),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Dropout(0.4),
+            nn.Linear(128, 36)
+        )
+
+    def forward(self, x):
+        return self.network(x)
+
 
 
 
