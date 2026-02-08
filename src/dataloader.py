@@ -1,17 +1,12 @@
 import torch
-from numpy.f2py.auxfuncs import throw_error
+from configs.cfg_importer import *
 from torch.utils.data import DataLoader, Dataset
 from torchvision.transforms import v2
 from torchvision.datasets import ImageFolder
 import os
-import yaml
 import matplotlib.pyplot as plt
 
-try:
-    with open("../configs/config.yaml", 'r') as f:
-        cfg = yaml.safe_load(f)
-except Exception as e:
-    throw_error(f"Config not loaded: {e}")
+cfg = import_cfg()
 
 test_path = "data/asl_processed/test"
 train_path = "data/asl_processed/train"
@@ -20,7 +15,6 @@ asl_train = os.path.join(cfg['working_path'], train_path)
 
 train_ds = ImageFolder(asl_train, v2.Compose([
     v2.Resize((224, 224), antialias=True),
-    v2.RandomHorizontalFlip(p=0.5),
     v2.RandomRotation(15),
     v2.ToImage(),
     v2.ToDtype(torch.float32, scale=True),
@@ -38,7 +32,6 @@ test_clean_ds = ImageFolder(asl_test, v2.Compose([
 # Includes real-world augmentations
 test_messy_ds = ImageFolder(asl_test, v2.Compose([
     v2.Resize((224, 224), antialias=True),
-    v2.RandomHorizontalFlip(p=0.5),
     v2.RandomRotation(15),
     v2.ToImage(),
     v2.ToDtype(torch.float32, scale=True),

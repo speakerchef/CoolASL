@@ -1,5 +1,5 @@
 /PROJECT_PLAN.md
 .idea
 .DS_Store
-/models
-/data
+/data/*
+/logs/*
