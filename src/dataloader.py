@@ -1,5 +1,4 @@
 import torch
-import torchvision.transforms as transforms
 from numpy.f2py.auxfuncs import throw_error
 from torch.utils.data import DataLoader, Dataset
 from torchvision.transforms import v2
@@ -73,5 +72,4 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.show()
 
-    
 
