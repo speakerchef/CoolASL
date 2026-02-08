@@ -11,8 +11,6 @@ from src.model import model
 import matplotlib.pyplot as plt
 
 import json
-from ignite.handlers import Engine, Events
-from ignite.metrics import Accuracy, Loss
 
 cfg = import_cfg()
 device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
