@@ -1,16 +1,10 @@
 import torchvision.models as models
 import torch.nn as nn
 
-model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
 
-features_in = model.fc.in_features
-model.fc = nn.Linear(features_in, 36) # A-Z, 0-9
-
-# Freezing early layers to avoid overfitting.
-for name, param in model.named_parameters():
-    if name.startswith(('layer1', 'layer2', 'layer3')):
-        param.requires_grad = False
-
+# Simple Landmark Classifier (New)
+# Improve on Resnet IC method by bypassing domain gap between dataset and live feed;
+# Image background, color, hue, etc... don't matter.
 class LandmarkClassifier(nn.Module):
     def __init__(self):
         super().__init__()
@@ -26,6 +20,22 @@ class LandmarkClassifier(nn.Module):
 
     def forward(self, x):
         return self.network(x)
+
+
+
+# Resnet18 (deprecated)
+# Performs poorly on real world material due to large variances in image backgrounds;
+# **Training images have consistent, clean backgrounds.
+model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+
+features_in = model.fc.in_features
+model.fc = nn.Linear(features_in, 36) # A-Z, 0-9
+
+# Freezing early layers to avoid overfitting.
+for name, param in model.named_parameters():
+    if name.startswith(('layer1', 'layer2', 'layer3')):
+        param.requires_grad = False
+
 
 
 
