@@ -6,7 +6,7 @@ import torch.nn as nn
 import mediapipe as mp
 
 from configs.cfg_importer import import_cfg
-from src.dataloader import train_loader, test_messy_loader
+from src.dataloader import train_loader, test_loader_aug
 
 from src.model import model, LandmarkClassifier
 import json
