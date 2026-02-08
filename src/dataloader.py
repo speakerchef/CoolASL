@@ -13,13 +13,15 @@ train_path = "data/asl_processed/train"
 asl_test = os.path.join(cfg['working_path'], test_path)
 asl_train = os.path.join(cfg['working_path'], train_path)
 
-train_ds = ImageFolder(asl_train, v2.Compose([
+transforms = v2.Compose([
     v2.Resize((224, 224), antialias=True),
     v2.RandomRotation(15),
     v2.ToImage(),
     v2.ToDtype(torch.float32, scale=True),
     v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-]))
+])
+
+train_ds = ImageFolder(asl_train, transforms)
 
 # Ideal set
 test_clean_ds = ImageFolder(asl_test, v2.Compose([
@@ -30,13 +32,7 @@ test_clean_ds = ImageFolder(asl_test, v2.Compose([
 ]))
 
 # Includes real-world augmentations
-test_messy_ds = ImageFolder(asl_test, v2.Compose([
-    v2.Resize((224, 224), antialias=True),
-    v2.RandomRotation(15),
-    v2.ToImage(),
-    v2.ToDtype(torch.float32, scale=True),
-    v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-]))
+test_messy_ds = ImageFolder(asl_test, transforms)
 
 
 
