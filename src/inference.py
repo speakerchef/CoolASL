@@ -8,7 +8,6 @@ import os
 
 import torch
 from torchvision.transforms import v2
-from torchvision.models import resnet18, ResNet18_Weights
 from PIL import Image
 
 from src.model import model

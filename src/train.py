@@ -6,7 +6,7 @@ import torch.nn as nn
 import mediapipe as mp
 
 from configs.cfg_importer import import_cfg
-from src.dataloader import train_loader, test_loader_aug
+from src.dataloader import train_loader, test_loader_aug, test_loader_clean
 
 from src.model import model, LandmarkClassifier
 import json
@@ -88,7 +88,7 @@ for epoch in range(num_epochs):
 
     # Validation loop
     with torch.no_grad():
-        for j, vdata in enumerate(test_messy_loader):
+        for j, vdata in enumerate(test_loader_aug):
             vinputs, vlabels = vdata
             vinputs, vlabels = vinputs.to(device), vlabels.to(device)
 

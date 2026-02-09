@@ -1,13 +1,16 @@
+import numpy
 import torch
+from mediapipe.tasks.python.components.containers.landmark import NormalizedLandmark
 from mediapipe.tasks.python.vision.hand_landmarker import HandLandmarker
-
+from PIL import Image
 from configs.cfg_importer import *
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, TensorDataset
 from torchvision.transforms import v2
 from torchvision.datasets import ImageFolder
 import os
 import matplotlib.pyplot as plt
 import mediapipe as mp
+
 
 cfg = import_cfg()
 
@@ -16,7 +19,7 @@ train_path = "data/asl_processed/train"
 asl_test = os.path.join(cfg['working_path'], test_path)
 asl_train = os.path.join(cfg['working_path'], train_path)
 
-
+train_loader, test_loader_aug, test_loader_clean, lm_train_loader, lm_test_loader = [], [], [], [], []
 
 def init_resnet18():
     transforms = v2.Compose([
@@ -84,30 +87,66 @@ def init_lmc():
 def get_landmarks(landmarker: HandLandmarker):
     """Returns a list of classes with their respective landmarks per image"""
 
-    hand_landmarks: dict[str, list[mp.tasks.vision.HandLandmarkerResult]] = {}
+    # RR Transform to add robustness
+    transforms = v2.Compose([
+        v2.RandomRotation(18)
+    ])
+
+    hand_landmarks_train = {}
+    hand_landmarks_test = {}
+
     for class_folder in sorted(os.listdir(asl_train)):
-        class_images = os.path.join(asl_train, class_folder)
-        if not os.path.isdir(class_images):
+        cls_img_tr = os.path.join(asl_train, class_folder)
+        cls_img_ts = os.path.join(asl_test, class_folder)
+        if not os.path.isdir(cls_img_tr) and not os.path.isdir(cls_img_ts):
             continue
 
-        for path in os.listdir(class_images):
-            img_path = os.path.join(class_images, path)
-            mp_image = mp.Image.create_from_file(file_name=img_path)
+        # Load train data
+        lm_list_tr = []
+        for path in os.listdir(cls_img_tr):
+            img_path = os.path.join(cls_img_tr, path)
+            pil_img = transforms(Image.open(img_path))
+            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=numpy.array(pil_img))
 
             landmarks = landmarker.detect(image=mp_image)
             landmarks = landmarks.hand_landmarks
 
-            cls_lmarks = []
+            coord_list = []
 
             if landmarks:
-                for hand in landmarks:
-                    cls_lmarks.append(hand)
-                hand_landmarks.update({f"{class_folder}": cls_lmarks})
+                for lm in landmarks[0]:
+                    coord_list.extend([lm.x, lm.y, lm.z])
+                lm_list_tr.append(coord_list)
+
+
+        # Load test data
+        lm_list_tst = []
+        for path in os.listdir(cls_img_ts):
+            img_path = os.path.join(cls_img_ts, path)
+            pil_img = transforms(Image.open(img_path))
+            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=numpy.array(pil_img))
+
+            landmarks = landmarker.detect(image=mp_image)
+            landmarks = landmarks.hand_landmarks
+
+            coord_list = []
+            if landmarks:
+                for lm in landmarks[0]:
+                    coord_list.extend([lm.x, lm.y, lm.z])
+                lm_list_tst.append(coord_list)
+
+        hand_landmarks_test.update({f"{class_folder}": lm_list_tst})
+        hand_landmarks_train.update({f"{class_folder}": lm_list_tr})
+
+
+        # x, y, z = hand_landmarks_train[f'{class_folder}'][4][4]
+        # print(f"training coordinate for lm 4 (thumb) for hand {4} -> x:{x}, y:{y}, z:{z}")
 
         print(f"loaded landmarks for class: {class_folder}")
 
     # Save landmarks for future use
-    torch.save(hand_landmarks, f"../data/hand_landmarks.pth")
+    torch.save(hand_landmarks_train, f"../data/hand_landmarks_train.pth")
+    torch.save(hand_landmarks_test, f"../data/hand_landmarks_test.pth")
 
 
 
@@ -119,12 +158,37 @@ if __name__ == "__main__":
     # Setup training data for resnet18
     train_loader, test_loader_aug, test_loader_clean = init_resnet18()
 
+    lm_path_tr = os.path.join(cfg['working_path'], 'data/hand_landmarks_train')
+    lm_path_tst = os.path.join(cfg['working_path'], 'data/hand_landmarks_test')
+
     # Setup training data for landmark classifier
-    lm_path = torch.load('../data/hand_landmarks.pth')
-
     # Only run if no save exists
-    if not lm_path:
+    if not os.path.exists(lm_path_tr) or not os.path.exists(lm_path_tst):
         init_lmc()
+        print()
 
+    data_tr = torch.load(lm_path_tr)
+    data_tst = torch.load(lm_path_tst)
+    classes = sorted(data_tr.keys())
+
+    all_landmarks_tr = []
+    all_landmarks_tst = []
+    labels_tr = []
+    labels_tst = []
+
+    for cls_idx, cls_name in enumerate(classes):
+        for coords in data_tr[cls_name]:
+            all_landmarks_tr.append(coords)
+            labels_tr.append(cls_idx)
+        for coords in data_tst[cls_name]:
+            all_landmarks_tst.append(coords)
+            labels_tst.append(cls_idx)
+
+    lm_train_ds = TensorDataset(torch.tensor(all_landmarks_tr, dtype=torch.float32),
+                                torch.tensor(labels_tr, dtype=torch.long))
+    lm_train_loader = DataLoader(lm_train_ds, batch_size=cfg['batch_size'], shuffle=True)
+    lm_test_ds = TensorDataset(torch.tensor(all_landmarks_tst, dtype=torch.float32),
+                                torch.tensor(labels_tst, dtype=torch.long))
+    lm_test_loader = DataLoader(lm_test_ds, batch_size=cfg['batch_size'], shuffle=True)
 
 
