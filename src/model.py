@@ -9,13 +9,15 @@ class LandmarkClassifier(nn.Module):
     def __init__(self):
         super().__init__()
         self.network = nn.Sequential(
-            nn.Linear(63, 256),
+            nn.Linear(42, 256),
+            nn.BatchNorm1d(256),
             nn.ReLU(),
             nn.Dropout(0.3),
             nn.Linear(256, 128),
+            nn.BatchNorm1d(128),
             nn.ReLU(),
             nn.Dropout(0.4),
-            nn.Linear(128, 36)
+            nn.Linear(128, 26)
         )
 
     def forward(self, x):
@@ -29,7 +31,7 @@ class LandmarkClassifier(nn.Module):
 model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
 
 features_in = model.fc.in_features
-model.fc = nn.Linear(features_in, 36) # A-Z, 0-9
+model.fc = nn.Linear(features_in, 26) # A-Z
 
 # Freezing early layers to avoid overfitting.
 for name, param in model.named_parameters():

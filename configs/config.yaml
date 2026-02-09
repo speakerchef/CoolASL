@@ -2,6 +2,6 @@ working_path: "/Users/sohannair/PycharmProjects/CoolASL"
 lm_test_path: "/Users/sohannair/PycharmProjects/CoolASL/data/hand_landmarks_test.pth"
 lm_train_path: "/Users/sohannair/PycharmProjects/CoolASL/data/hand_landmarks_train.pth"
 batch_size: 256
-num_epochs: 1000 # Model on average converges at 4
-lr: 0.0001
+num_epochs: 100 # 5 for resnet
+lr: 0.001 #0.0001 for resnet
 

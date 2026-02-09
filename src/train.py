@@ -184,3 +184,4 @@ def train_resnet18():
 
 if __name__ == '__main__':
     train_lmc()
+    # train_resnet18()

@@ -10,6 +10,7 @@ from torchvision.datasets import ImageFolder
 import os
 import matplotlib.pyplot as plt
 import mediapipe as mp
+import math
 
 
 cfg = import_cfg()
@@ -20,6 +21,37 @@ asl_test = os.path.join(cfg['working_path'], test_path)
 asl_train = os.path.join(cfg['working_path'], train_path)
 
 train_loader, test_loader_aug, test_loader_clean, lm_train_loader, lm_test_loader = [], [], [], [], []
+
+
+def normalize_landmarks(coord_list):
+    """Takes 63 floats [x0,y0,z0,x1,y1,z1,...], returns normalized version"""
+    xs = coord_list[0::2]  # every 3rd starting at 0
+    ys = coord_list[1::2]  # every 3rd starting at 1
+    # zs = coord_list[2::3]  # every 3rd starting at 2
+
+    # Use wrist (landmark 0) as origin
+    wrist_x, wrist_y = xs[0], ys[0]
+    # wrist_x, wrist_y, wrist_z = xs[0], ys[0], zs[0]
+
+    # Subtract wrist position
+    xs = [x - wrist_x for x in xs]
+    ys = [y - wrist_y for y in ys]
+    # zs = [z - wrist_z for z in zs]
+    # zs = [z - wrist_z for z in zs]
+
+    # Scale by hand size (max distance from wrist)
+    max_dist = max(math.sqrt(x ** 2 + y ** 2) for x, y in zip(xs, ys))
+    if max_dist > 0:
+        xs = [x / max_dist for x in xs]
+        ys = [y / max_dist for y in ys]
+        # zs = [z / max_dist for z in zs]
+
+    # Rebuild flat list
+    normalized = []
+    for i in range(21):
+        # normalized.extend([xs[i], ys[i], zs[i]])
+        normalized.extend([xs[i], ys[i]])
+    return normalized
 
 def init_resnet18():
     transforms = v2.Compose([
@@ -89,7 +121,7 @@ def get_landmarks(landmarker: HandLandmarker):
 
     # RR Transform to add robustness
     transforms = v2.Compose([
-        v2.RandomRotation(18)
+        v2.RandomRotation(12)
     ])
 
     hand_landmarks_train = {}
@@ -115,7 +147,10 @@ def get_landmarks(landmarker: HandLandmarker):
 
             if landmarks:
                 for lm in landmarks[0]:
-                    coord_list.extend([lm.x, lm.y, lm.z])
+                    coord_list.extend([lm.x, lm.y])
+                    # coord_list.extend([lm.x, lm.y, lm.z])
+
+                coord_list = normalize_landmarks(coord_list)
                 lm_list_tr.append(coord_list)
 
 
@@ -123,7 +158,7 @@ def get_landmarks(landmarker: HandLandmarker):
         lm_list_tst = []
         for path in os.listdir(cls_img_ts):
             img_path = os.path.join(cls_img_ts, path)
-            pil_img = transforms(Image.open(img_path))
+            pil_img = Image.open(img_path)
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=numpy.array(pil_img))
 
             landmarks = landmarker.detect(image=mp_image)
@@ -132,7 +167,9 @@ def get_landmarks(landmarker: HandLandmarker):
             coord_list = []
             if landmarks:
                 for lm in landmarks[0]:
-                    coord_list.extend([lm.x, lm.y, lm.z])
+                    coord_list.extend([lm.x, lm.y])
+
+                coord_list = normalize_landmarks(coord_list)
                 lm_list_tst.append(coord_list)
 
         hand_landmarks_test.update({f"{class_folder}": lm_list_tst})
@@ -151,12 +188,11 @@ def get_landmarks(landmarker: HandLandmarker):
 
 
 
+train_loader, test_loader_aug, test_loader_clean = init_resnet18()
 
-# Print sample images
 if __name__ == "__main__":
 
     # Setup training data for resnet18
-    train_loader, test_loader_aug, test_loader_clean = init_resnet18()
 
     lm_path_tr = cfg['lm_train_path']
     lm_path_tst = cfg['lm_test_path']
