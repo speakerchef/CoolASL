@@ -9,7 +9,7 @@ class LandmarkClassifier(nn.Module):
     def __init__(self):
         super().__init__()
         self.network = nn.Sequential(
-            nn.Linear(42, 256),
+            nn.Linear(63, 256),
             nn.BatchNorm1d(256),
             nn.ReLU(),
             nn.Dropout(0.3),

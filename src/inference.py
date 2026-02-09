@@ -114,7 +114,7 @@ with HandLandmarker.create_from_options(options) as landmarker:
                 coord_list = []
                 if hand:
                     for lm in latest_result.hand_landmarks[0]:
-                        coord_list.extend([lm.x, lm.y]) # Making tensor
+                        coord_list.extend([lm.x, lm.y, lm.z]) # Making tensor
 
                 coord_list = normalize_landmarks(coord_list)
 
@@ -136,7 +136,7 @@ with HandLandmarker.create_from_options(options) as landmarker:
                 get_span(hand[20].x, wrist.x, hand[20].y, span_y),
                     )
 
-                scale =1.1* math.exp(-span) # drop scale factor as span increases
+                scale =1.1* math.exp(-2*span) # drop scale factor as span increases
                 box_size = span * scale
 
                 x_dampener = 0.5 # narrow bbox width
