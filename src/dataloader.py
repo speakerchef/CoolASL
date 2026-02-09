@@ -158,8 +158,8 @@ if __name__ == "__main__":
     # Setup training data for resnet18
     train_loader, test_loader_aug, test_loader_clean = init_resnet18()
 
-    lm_path_tr = os.path.join(cfg['working_path'], 'data/hand_landmarks_train')
-    lm_path_tst = os.path.join(cfg['working_path'], 'data/hand_landmarks_test')
+    lm_path_tr = os.path.join(cfg['working_path'], 'data/hand_landmarks_train.pth')
+    lm_path_tst = os.path.join(cfg['working_path'], 'data/hand_landmarks_test.pth')
 
     # Setup training data for landmark classifier
     # Only run if no save exists
@@ -184,11 +184,19 @@ if __name__ == "__main__":
             all_landmarks_tst.append(coords)
             labels_tst.append(cls_idx)
 
+
     lm_train_ds = TensorDataset(torch.tensor(all_landmarks_tr, dtype=torch.float32),
                                 torch.tensor(labels_tr, dtype=torch.long))
     lm_train_loader = DataLoader(lm_train_ds, batch_size=cfg['batch_size'], shuffle=True)
     lm_test_ds = TensorDataset(torch.tensor(all_landmarks_tst, dtype=torch.float32),
                                 torch.tensor(labels_tst, dtype=torch.long))
     lm_test_loader = DataLoader(lm_test_ds, batch_size=cfg['batch_size'], shuffle=True)
+
+    # Validate
+    landmarks, labels = next(iter(lm_train_loader))
+    print("Loaded landmark train and test datasets")
+    print(landmarks.shape)
+    print(labels.shape)
+
 
 
