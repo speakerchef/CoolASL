@@ -158,45 +158,16 @@ if __name__ == "__main__":
     # Setup training data for resnet18
     train_loader, test_loader_aug, test_loader_clean = init_resnet18()
 
-    lm_path_tr = os.path.join(cfg['working_path'], 'data/hand_landmarks_train.pth')
-    lm_path_tst = os.path.join(cfg['working_path'], 'data/hand_landmarks_test.pth')
+    lm_path_tr = cfg['lm_train_path']
+    lm_path_tst = cfg['lm_test_path']
 
     # Setup training data for landmark classifier
     # Only run if no save exists
     if not os.path.exists(lm_path_tr) or not os.path.exists(lm_path_tst):
+        print("Loading landmarks...")
         init_lmc()
-        print()
-
-    data_tr = torch.load(lm_path_tr)
-    data_tst = torch.load(lm_path_tst)
-    classes = sorted(data_tr.keys())
-
-    all_landmarks_tr = []
-    all_landmarks_tst = []
-    labels_tr = []
-    labels_tst = []
-
-    for cls_idx, cls_name in enumerate(classes):
-        for coords in data_tr[cls_name]:
-            all_landmarks_tr.append(coords)
-            labels_tr.append(cls_idx)
-        for coords in data_tst[cls_name]:
-            all_landmarks_tst.append(coords)
-            labels_tst.append(cls_idx)
 
 
-    lm_train_ds = TensorDataset(torch.tensor(all_landmarks_tr, dtype=torch.float32),
-                                torch.tensor(labels_tr, dtype=torch.long))
-    lm_train_loader = DataLoader(lm_train_ds, batch_size=cfg['batch_size'], shuffle=True)
-    lm_test_ds = TensorDataset(torch.tensor(all_landmarks_tst, dtype=torch.float32),
-                                torch.tensor(labels_tst, dtype=torch.long))
-    lm_test_loader = DataLoader(lm_test_ds, batch_size=cfg['batch_size'], shuffle=True)
-
-    # Validate
-    landmarks, labels = next(iter(lm_train_loader))
-    print("Loaded landmark train and test datasets")
-    print(landmarks.shape)
-    print(labels.shape)
 
 
 
