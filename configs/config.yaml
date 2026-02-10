@@ -1,5 +1,15 @@
-working_path: "/Users/sohannair/PycharmProjects/CoolASL"
-batch_size: 64
-num_epochs: 4 # Model on average converges at 4
-lr: 0.0001
+# These are the image paths for the ASL-HG dataset
+ASLHG_TRAIN_DATA: "../data/asl_processed/train"
+ASLHG_TEST_DATA: "../data/asl_processed/test"
+
+# These are the processed landmark dataset paths for the LandmarkClassifier model
+ASLHG_LM_TRAIN: "../data/hand_landmarks_train.pth"
+ASLHG_LM_TEST: "../data/hand_landmarks_test.pth"
+
+# Model parameters (dealers choice here)
+batch_size: 256
+num_epochs: 100 # 5 for resnet
+lr: 0.001 #0.0001 for resnet
+
+MODEL_MODE: 'lmc' # Change to test out other models performance {lmc, resnet18}
 
