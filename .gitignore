@@ -1,5 +1,32 @@
+# Project plan (private)
 /PROJECT_PLAN.md
-.idea
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# macOS
 .DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+
+# Data (download/setup separately)
 /data/*
+!/data/.gitkeep
+
+# Logs
 /logs/*
+!/logs/.gitkeep
+
+# Model weights
+#/models/*.pth
+
+# Jupyter
+.ipynb_checkpoints/

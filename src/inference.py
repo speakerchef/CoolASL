@@ -1,86 +1,40 @@
 import math
 import time
-
+import logging as log
 import cv2
 import mediapipe as mp
-import numpy as np
 import os
 
 import torch
 from mediapipe.tasks.python.vision.drawing_utils import draw_landmarks
-from torch import AnyType
 from torchvision.transforms import v2
 from PIL import Image
-
-from src.model import LandmarkClassifier, model
-from src.dataloader import asl_train, normalize_landmarks
+from src.model import LandmarkClassifier, resnet18
+from src.dataloader import asl_train_path, normalize_landmarks
 from configs.cfg_importer import import_cfg
 
+
 cfg = import_cfg()
-MODEL_MODE = 'lmc'
+MODEL_MODE = cfg['MODEL_MODE']
 
-mp_modelpath = os.path.join(cfg['working_path'], 'models/hand_landmarker.task')
+mp_modelpath = '../models/hand_landmarker.task'
 
-train_date = '08_02_2026_21_43_11'
 model_path = torch.load(f'../models/{MODEL_MODE}_asl.pth')
-asl_model = LandmarkClassifier() if MODEL_MODE == 'lmc' else model
+asl_model = LandmarkClassifier() if MODEL_MODE == 'lmc' else resnet18
 asl_model.load_state_dict(model_path)
 
-device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-print(f"Device: {device}")
+device = torch.device("mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu")
+log.info(f"Device: {device}")
+log.info(f"Model: {MODEL_MODE}")
 
-
-print(f"Model: {asl_model}")
 asl_model.to(device)
 
+# MP setup
 BaseOptions = mp.tasks.BaseOptions
 HandLandmarker = mp.tasks.vision.HandLandmarker
 HandLandmarkerOptions = mp.tasks.vision.HandLandmarkerOptions
 HandLandmarkerResult = mp.tasks.vision.HandLandmarkerResult
 VisionRunningMode = mp.tasks.vision.RunningMode
-
-# Store latest result from callback
-latest_result = None
-
-def inference(input):
-    with torch.no_grad():
-
-        data = input.to(device)
-        outputs = asl_model(data)
-
-        _, predicted = torch.max(outputs, 1)
-
-        class_idx = predicted.item()
-        classes = sorted(os.listdir(asl_train))
-        classes = classes[1:]
-
-        probs = torch.softmax(outputs, dim=1)
-        confidence, predicted = torch.max(probs, 1)
-        label = f"{classes[class_idx]} ({confidence.item():.0%})"
-        cv2.putText(frame, label, (x_btm, y_btm - 10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-
-        draw_landmarks(frame, hand)
-
-def on_result(result: HandLandmarkerResult, output_image: mp.Image, timestamp_ms: int):
-    global latest_result
-    latest_result = result
-
-def display_model_input(model_in):
-    display = model_in.clone()
-    mean = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
-    std = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
-    display = display * std + mean
-    display = display.clamp(0, 1).permute(1, 2, 0).numpy()
-    cv2.imshow("Model Input", cv2.cvtColor(display, cv2.COLOR_RGB2BGR))
-
-def get_span(x1, x2, y1, y2):
-    return math.sqrt((x2-x1)**2 + (y2-y1)**2)
-
-options = HandLandmarkerOptions(
-    base_options=BaseOptions(model_asset_path=mp_modelpath),
-    running_mode=VisionRunningMode.LIVE_STREAM,
-    num_hands=1,
-    result_callback=on_result)
 
 transforms = v2.Compose([
     v2.Resize((224, 224), antialias=True),
@@ -89,16 +43,70 @@ transforms = v2.Compose([
     v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
 
+# Store latest result from callback
+latest_result = None
+
+@torch.no_grad()
+def inference(input):
+    """
+    Runs inference on real-time landmark data from video stream
+    :param input: Input to model
+    """
+    data = input.to(device)
+    outputs = asl_model(data)
+
+    _, predicted = torch.max(outputs, 1)
+
+    class_idx = predicted.item()
+    # Get class names from training folders (filter out hidden files)
+    classes = sorted([d for d in os.listdir(asl_train_path)
+                      if os.path.isdir(os.path.join(asl_train_path, d))])
+
+    probs = torch.softmax(outputs, dim=1)
+    confidence, predicted = torch.max(probs, 1)
+    label = f"{classes[class_idx]} ({confidence.item():.0%})"
+    cv2.putText(frame, label, (x_btm, y_btm - 10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+    draw_landmarks(frame, hand)
+
+def on_result(result: HandLandmarkerResult, output_image: mp.Image, timestamp_ms: int):
+    """Callback for async landmark detector."""
+    global latest_result
+    latest_result = result
+
+def display_model_input(model_in):
+    """Utility to debug model input to resnet by displaying transformed input on stream."""
+    display = model_in.clone()
+    mean = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
+    std = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
+    display = display * std + mean
+    display = display.clamp(0, 1).permute(1, 2, 0).numpy()
+    cv2.imshow("Model Input", cv2.cvtColor(display, cv2.COLOR_RGB2BGR))
+
+def get_span(x1, x2, y1, y2):
+    """
+    :return: Euclidean distance between two points
+    """
+    return math.sqrt((x2-x1)**2 + (y2-y1)**2)
+
+
+options = HandLandmarkerOptions(
+    base_options=BaseOptions(model_asset_path=mp_modelpath),
+    running_mode=VisionRunningMode.LIVE_STREAM,
+    num_hands=1,
+    result_callback=on_result)
+
+# Process block
 asl_model.eval()
 with HandLandmarker.create_from_options(options) as landmarker:
     video = cv2.VideoCapture(2)
     if not video.isOpened():
-        print("No video")
+        log.error("No video")
 
     while (True):
         ret, frame = video.read()
         if not ret:
-            print("No frames")
+            log.error("No frames")
             break
 
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) # BGR TO RGB
@@ -159,7 +167,7 @@ with HandLandmarker.create_from_options(options) as landmarker:
                 crop_rgb = Image.fromarray(cv2.cvtColor(crop, cv2.COLOR_BGR2RGB))
                 crop_rgb = transforms(crop_rgb)
 
-                display_model_input(crop_rgb) # Preview model input frame
+                # display_model_input(crop_rgb) # Preview model input frame
 
                 # Pre inference data prep
                 crop_rgb = crop_rgb.unsqueeze(0)
@@ -177,6 +185,3 @@ with HandLandmarker.create_from_options(options) as landmarker:
 
     video.release()
     cv2.destroyAllWindows()
-
-
-
