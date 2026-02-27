@@ -3,8 +3,8 @@
 
 ### Roadmap
 
-- **Phase 1**** (current): Static alphabet recognition (A-Z)
-- **Phase 2**: Dynamic word-level gesture recognition and translation using WLASL dataset
+- **Phase 1** (Complete): Static alphabet recognition (A-Z)
+- **Phase 2**** (In-Progress): Dynamic word-level gesture recognition and translation using WLASL dataset
 - **Phase 3**: Interactive ASL practice tool with LLM-powered tutor
 
 Real-time American Sign Language alphabet classifier using hand landmark detection. Recognizes A-Z hand signs from a webcam feed with high accuracy.
@@ -100,11 +100,5 @@ CoolASL/
 
 Edit `configs/config.yaml` to adjust:
 
-```yaml
-MODEL_MODE: 'lmc'      # 'lmc' for LandmarkClassifier, 'resnet18' for ResNet
-batch_size: 256
-num_epochs: 100
-lr: 0.001
-```
 
 
